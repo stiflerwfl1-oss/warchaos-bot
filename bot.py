@@ -25,7 +25,11 @@ def get_type_label(type_raw):
     return labels.get(get_canonical_type(type_raw), 'Conquista')
 
 def get_img_url(item):
-    return item.get('image') or item.get('fallbackOriginalUrl') or ''
+    url = item.get('image') or item.get('fallbackOriginalUrl') or ''
+    # Garante que a URL e valida antes de usar
+    if url and url.startswith('http'):
+        return url
+    return ''
 
 @bot.event
 async def on_ready():
@@ -57,18 +61,11 @@ async def conquista(ctx, *, nome_busca: str):
 
                 dados_conquistas = json.loads(match.group(1))
 
-                # Busca em name, description, weapon, operationRaw, mapRaw, tags
+                # Busca APENAS pelo nome da conquista
                 q = nome_busca.lower()
                 resultados = [
                     item for item in dados_conquistas
-                    if (
-                        q in item.get('name', '').lower() or
-                        q in item.get('description', '').lower() or
-                        q in str(item.get('weapon', '')).lower() or
-                        q in str(item.get('operationRaw', '')).lower() or
-                        q in str(item.get('mapRaw', '') or item.get('map', '')).lower() or
-                        any(q in t.lower() for t in item.get('tags', []))
-                    )
+                    if q in item.get('name', '').lower()
                 ]
 
                 if not resultados:
