@@ -85,7 +85,7 @@ async def enviar_resultados(ctx, mensagem_status, resultados, nome_busca):
             embed.add_field(name="Categoria", value="Star Fita Gold" if is_gold_ribbon else "Star Arma Gold", inline=True)
         if img_url:
             embed.set_image(url=img_url)
-        embed.set_footer(text=f"Fonte: WarChaos Catalog | ID: {resultado.get('id', 'N/A')}")
+        embed.set_footer(text=f"Fonte: ObscureArt Desafios | ID: {resultado.get('id', 'N/A')}")
         await ctx.send(embed=embed)
 
 @bot.event
