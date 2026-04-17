@@ -17,6 +17,49 @@ TYPE_MAP = {
     'marca': 'marca', 'insignia': 'insignia', 'insiginia': 'insignia', 'fita': 'fita',
 }
 
+# Dicionario de sinonimos PT<->EN para busca bidirecional
+# Chave: termo digitado (minusculo) -> lista de termos equivalentes para buscar no nome
+SINONIMOS = {
+    'cavalo louco':     ['crazy horse'],
+    'crazy horse':      ['crazy horse', 'cavalo louco'],
+    'dourada':          ['dourada', 'gold'],
+    'gold':             ['gold', 'dourada'],
+    'de elite':         ['de elite', 'elite'],
+    'elite':            ['elite', 'de elite'],
+    'coroa':            ['coroa', 'crown'],
+    'crown':            ['crown', 'coroa'],
+    'aguia':            ['aguia', 'aguia', 'eagle'],
+    'aguia':            ['aguia', 'eagle'],
+    'eagle':            ['eagle', 'aguia'],
+    'dragao':           ['dragao', 'dragon'],
+    'dragon':           ['dragon', 'dragao'],
+    'lobo':             ['lobo', 'wolf'],
+    'wolf':             ['wolf', 'lobo'],
+    'cobra':            ['cobra', 'snake', 'serpente'],
+    'snake':            ['snake', 'cobra', 'serpente'],
+    'serpente':         ['serpente', 'snake', 'cobra'],
+    'touro':            ['touro', 'bull'],
+    'bull':             ['bull', 'touro'],
+    'fantasma':         ['fantasma', 'ghost'],
+    'ghost':            ['ghost', 'fantasma'],
+    'sombra':           ['sombra', 'shadow'],
+    'shadow':           ['shadow', 'sombra'],
+    'furia':            ['furia', 'fury'],
+    'fury':             ['fury', 'furia'],
+    'thunder':          ['thunder', 'trovao'],
+    'trovao':           ['trovao', 'thunder'],
+    'veneno':           ['veneno', 'venom', 'toxic'],
+    'venom':            ['venom', 'veneno'],
+    'toxic':            ['toxic', 'veneno', 'venom'],
+    'toxicity':         ['toxicity', 'veneno'],
+    'yakuza':           ['yakuza'],
+    'absolute':         ['absolute'],
+    'heat':             ['heat'],
+    'panda':            ['panda'],
+    'tiger':            ['tiger', 'tigre'],
+    'tigre':            ['tigre', 'tiger'],
+}
+
 def get_canonical_type(type_raw):
     return TYPE_MAP.get(str(type_raw or '').strip().lower(), str(type_raw or '').lower())
 
@@ -29,6 +72,27 @@ def get_img_url(item):
     if url and url.startswith('http'):
         return url
     return ''
+
+def expandir_busca(q):
+    """Retorna lista de termos a buscar, incluindo sinonimos."""
+    termos = [q]
+    # Adiciona sinonimos diretos
+    if q in SINONIMOS:
+        termos += SINONIMOS[q]
+    # Verifica se q contem alguma chave de sinonimo como substring
+    for chave, equivalentes in SINONIMOS.items():
+        if chave in q:
+            # Substitui a chave pelos equivalentes na query completa
+            for eq in equivalentes:
+                variante = q.replace(chave, eq)
+                if variante not in termos:
+                    termos.append(variante)
+    return list(dict.fromkeys(termos))  # remove duplicatas mantendo ordem
+
+def nome_match(nome, termos):
+    """Verifica se algum dos termos esta contido no nome (case-insensitive)."""
+    nome_lower = nome.lower()
+    return any(t in nome_lower for t in termos)
 
 async def carregar_dados():
     async with aiohttp.ClientSession() as session:
@@ -85,7 +149,7 @@ async def enviar_resultados(ctx, mensagem_status, resultados, nome_busca):
             embed.add_field(name="Categoria", value="Star Fita Gold" if is_gold_ribbon else "Star Arma Gold", inline=True)
         if img_url:
             embed.set_image(url=img_url)
-        embed.set_footer(text=f"Fonte: ObscureArt Desafios")
+        embed.set_footer(text="Fonte: ObscureArt Desafios")
         await ctx.send(embed=embed)
 
 @bot.event
@@ -101,8 +165,8 @@ async def conquista(ctx, *, nome_busca: str):
         if dados is None:
             await mensagem_status.edit(content="Erro ao acessar o banco de dados.")
             return
-        q = nome_busca.lower()
-        resultados = [item for item in dados if q in item.get('name', '').lower()]
+        termos = expandir_busca(nome_busca.lower())
+        resultados = [item for item in dados if nome_match(item.get('name', ''), termos)]
         await enviar_resultados(ctx, mensagem_status, resultados, nome_busca)
     except Exception as e:
         await mensagem_status.edit(content=f"Ocorreu um erro ao processar os dados: {e}")
@@ -116,10 +180,10 @@ async def insignia(ctx, *, nome_busca: str):
         if dados is None:
             await mensagem_status.edit(content="Erro ao acessar o banco de dados.")
             return
-        q = nome_busca.lower()
+        termos = expandir_busca(nome_busca.lower())
         resultados = [
             item for item in dados
-            if q in item.get('name', '').lower()
+            if nome_match(item.get('name', ''), termos)
             and get_canonical_type(item.get('type', '')) == 'insignia'
         ]
         await enviar_resultados(ctx, mensagem_status, resultados, nome_busca)
@@ -135,10 +199,10 @@ async def marca(ctx, *, nome_busca: str):
         if dados is None:
             await mensagem_status.edit(content="Erro ao acessar o banco de dados.")
             return
-        q = nome_busca.lower()
+        termos = expandir_busca(nome_busca.lower())
         resultados = [
             item for item in dados
-            if q in item.get('name', '').lower()
+            if nome_match(item.get('name', ''), termos)
             and get_canonical_type(item.get('type', '')) == 'marca'
         ]
         await enviar_resultados(ctx, mensagem_status, resultados, nome_busca)
@@ -154,8 +218,8 @@ async def tudo(ctx, *, nome_busca: str):
         if dados is None:
             await mensagem_status.edit(content="Erro ao acessar o banco de dados.")
             return
-        q = nome_busca.lower()
-        resultados = [item for item in dados if q in item.get('name', '').lower()]
+        termos = expandir_busca(nome_busca.lower())
+        resultados = [item for item in dados if nome_match(item.get('name', ''), termos)]
         await enviar_resultados(ctx, mensagem_status, resultados, nome_busca)
     except Exception as e:
         await mensagem_status.edit(content=f"Ocorreu um erro ao processar os dados: {e}")
